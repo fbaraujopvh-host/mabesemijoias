@@ -1,6 +1,31 @@
 ---
-import { products, categories } from '../data/products';
+import { categories, products as staticProducts } from '../data/products';
+import { getProducts } from '../sanity/lib/queries';
 import ProductCard from './ProductCard.astro';
+
+// Tenta buscar do Sanity; usa dados estáticos como fallback
+let sanityProducts: any[] = [];
+try {
+  sanityProducts = await getProducts();
+} catch (e) {
+  // Sanity ainda não configurado ou sem produtos cadastrados
+}
+
+// Normaliza produtos do Sanity para o mesmo formato do ProductCard
+const sanityNormalized = sanityProducts.map((p) => ({
+  id: p._id,
+  name: p.name,
+  category: p.category,
+  price: p.price,
+  originalPrice: p.originalPrice,
+  image: p.image?.asset?.url ?? '',
+  badge: p.badge || undefined,
+  badgeColor: p.badgeColor || undefined,
+  description: p.description,
+  material: p.material,
+}));
+
+const products = sanityNormalized.length > 0 ? sanityNormalized : staticProducts;
 ---
 
 <section id="colecao" class="py-24 bg-cream">
@@ -34,22 +59,32 @@ import ProductCard from './ProductCard.astro';
 
     <!-- Products Grid -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" id="products-grid">
-      {products.map((product) => (
+      {products.map((product: any) => (
         <div data-category={product.category} class="product-item group animate-fade-in">
           <ProductCard product={product} />
         </div>
       ))}
     </div>
 
+    <!-- Empty state -->
+    {products.length === 0 && (
+      <div class="text-center py-16 text-gray-400">
+        <p class="text-lg">Nenhum produto cadastrado ainda.</p>
+        <p class="text-sm mt-2">Adicione produtos no <a href="/studio" class="text-gold-600 underline">painel CMS</a>.</p>
+      </div>
+    )}
+
     <!-- Load More -->
-    <div class="text-center mt-14">
-      <button class="btn-outline">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="w-5 h-5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-        </svg>
-        Carregar Mais Peças
-      </button>
-    </div>
+    {products.length > 0 && (
+      <div class="text-center mt-14">
+        <button class="btn-outline">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="w-5 h-5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+          </svg>
+          Carregar Mais Peças
+        </button>
+      </div>
+    )}
   </div>
 </section>
 
@@ -60,16 +95,12 @@ import ProductCard from './ProductCard.astro';
   filterBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       const category = btn.dataset.category;
-
-      // Update active button
       filterBtns.forEach(b => {
         b.classList.remove('bg-gold-600', 'text-white', 'border-gold-600', 'shadow-md');
         b.classList.add('bg-white', 'text-charcoal', 'border-gray-200');
       });
       btn.classList.add('bg-gold-600', 'text-white', 'border-gold-600', 'shadow-md');
       btn.classList.remove('bg-white', 'text-charcoal', 'border-gray-200');
-
-      // Filter products
       productItems.forEach(item => {
         if (category === 'all' || item.dataset.category === category) {
           item.style.display = 'block';
